@@ -1,4 +1,10 @@
-use std::{fs::File, io::Write};
+use std::{
+    fs::{read_to_string, File},
+    io::Write,
+    path::PathBuf,
+    thread::sleep,
+    time::Duration,
+};
 use wry::{
     application::{
         dpi::{PhysicalPosition, PhysicalSize},
@@ -31,6 +37,11 @@ fn save_frame_to_file(webview: &WebView, frame: u32) {
 fn main() -> wry::Result<()> {
     const FRAMES: u32 = 30;
 
+    let remotion_bundle_path = PathBuf::from("example/remotion-bundle/index.html");
+    let html_content = read_to_string(remotion_bundle_path).expect("Failed to read HTML file");
+
+    println!("HTML content: {}", html_content);
+
     let width = 1920;
     let height = 1080;
     let x_pos = 0;
@@ -57,7 +68,7 @@ fn main() -> wry::Result<()> {
     };
 
     let _webview = WebViewBuilder::new(window)?
-        .with_html(r#"<html><body><h1>Frame 1</h1></body></html>"#)?
+        .with_html(html_content)?
         .with_initialization_script(
             r#"
                 (function () {
@@ -75,26 +86,25 @@ fn main() -> wry::Result<()> {
         *control_flow = ControlFlow::Wait;
 
         match event {
-            Event::NewEvents(StartCause::Init) => {
-                println!("Wry has started!");
-            }
+            Event::NewEvents(StartCause::Init) => println!("Wry has started!"),
             Event::UserEvent(UserEvent::PageLoaded) => {
                 println!("Page loaded!");
 
-                // Save frame to file
-                save_frame_to_file(&_webview, 1);
+                for frame in 0..FRAMES {
+                    // Save frame to file
+                    println!("Saving frame {}", frame);
+                    let set_frame_command =
+                        // format!("document.body.innerText = '<h1>Frame {}</h1>'", frame);
+                        format!("remotion_setFrame({})", frame);
 
-                let set_frame_command = format!("remotion_setFrame({})", 2);
+                    _webview
+                        .evaluate_script(set_frame_command.as_str())
+                        .unwrap();
 
-                _webview
-                    .evaluate_script(set_frame_command.as_str())
-                    .unwrap();
+                    save_frame_to_file(&_webview, frame);
 
-                // _webview
-                //     .evaluate_script_with_callback("document.readyState", |result| {
-                //         println!("String: {:?}", result)
-                //     })
-                //     .unwrap();
+                    sleep(Duration::from_millis(100));
+                }
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
