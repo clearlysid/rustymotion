@@ -11,8 +11,4 @@ keywords = ["remotion"]
 categories = []
 
 [dependencies]
-wry = "0.33.0"
-
-
-[target.'cfg(windows)'.dependencies]
-webview2-com = "0.26.0"
+wry = { git = "https://github.com/clearlysid/wry.git" }

@@ -1,3 +1,4 @@
+use std::{fs::File, io::Write};
 use wry::{
     application::{
         dpi::{PhysicalPosition, PhysicalSize},
@@ -5,14 +6,8 @@ use wry::{
         event_loop::{ControlFlow, EventLoop},
         window::WindowBuilder,
     },
-    webview::WebViewBuilder,
+    webview::{ScreenshotRegion, WebViewBuilder},
 };
-
-#[cfg(target_os = "macos")]
-use wry::webview::WebviewExtMacOS;
-
-#[cfg(target_os = "windows")]
-use wry::webview::WebviewExtWindows;
 
 fn main() -> wry::Result<()> {
     let width = 800; // physical pixels
@@ -40,6 +35,15 @@ fn main() -> wry::Result<()> {
         .build()?;
 
     _webview.open_devtools();
+
+    _webview
+        .screenshot(ScreenshotRegion::Visible, |image: wry::Result<Vec<u8>>| {
+            let image = image.expect("No image?");
+            let mut file = File::create("baaaaar.png").expect("Couldn't create the dang file");
+            file.write(image.as_slice())
+                .expect("Couldn't write the dang file");
+        })
+        .unwrap();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
