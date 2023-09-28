@@ -9,14 +9,9 @@ authors = ["Siddharth Jha"]
 readme = "README.md"
 keywords = ["remotion"]
 categories = []
-build = "build.rs"
-
-[target.'cfg(target_os = "macos")'.build-dependencies]
-swift-bridge-build = "0.1"
 
 [dependencies]
 wry = "0.33.0"
-swift-bridge = "0.1"
 
 
 [target.'cfg(windows)'.dependencies]

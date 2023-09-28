@@ -41,12 +41,6 @@ fn main() -> wry::Result<()> {
 
     _webview.open_devtools();
 
-    #[cfg(target_os = "macos")]
-    {
-        let devices = ffi::get_aperture_devices();
-        println!("Devices: {}", devices);
-    }
-
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
@@ -59,11 +53,4 @@ fn main() -> wry::Result<()> {
             _ => (),
         }
     });
-}
-
-#[swift_bridge::bridge]
-mod ffi {
-    extern "Swift" {
-        fn get_aperture_devices() -> String;
-    }
 }
