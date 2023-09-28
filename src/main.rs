@@ -10,9 +10,11 @@ use wry::{
 };
 
 fn main() -> wry::Result<()> {
-    let width = 800; // physical pixels
-    let height = 600; // physical pixels
+    // physical pixels
+    let width = 1920;
+    let height = 1080;
 
+    // physical position
     let x_pos = 0;
     let y_pos = 0;
 
@@ -30,18 +32,17 @@ fn main() -> wry::Result<()> {
 
     let _webview = WebViewBuilder::new(window)?
         .with_url("https://www.google.com")?
-        .with_devtools(true)
         // .with_initialization_script("console.log('init script');")
         .build()?;
 
-    _webview.open_devtools();
+    // _webview.open_devtools();
 
     _webview
         .screenshot(ScreenshotRegion::Visible, |image: wry::Result<Vec<u8>>| {
-            let image = image.expect("No image?");
-            let mut file = File::create("baaaaar.png").expect("Couldn't create the dang file");
+            let image = image.expect("Couldn't get image");
+            let mut file = File::create("test.png").expect("Couldn't create the file");
             file.write(image.as_slice())
-                .expect("Couldn't write the dang file");
+                .expect("Couldn't write to file");
         })
         .unwrap();
 
@@ -49,7 +50,7 @@ fn main() -> wry::Result<()> {
         *control_flow = ControlFlow::Wait;
 
         match event {
-            Event::NewEvents(StartCause::Init) => {}
+            Event::NewEvents(StartCause::Init) => println!("Wry has started!"),
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
