@@ -30,22 +30,28 @@ fn main() -> wry::Result<()> {
         .with_inner_size(size)
         .with_position(position)
         .with_always_on_top(true)
+        .with_focused(true)
         .build(&event_loop)?;
 
     let _webview = WebViewBuilder::new(window)?
-        .with_url("https://www.headout.com")?
-        .with_focused(true)
+        .with_url("https://www.google.com")?
+        .with_devtools(true)
+        // .with_initialization_script("console.log('init script');")
         .build()?;
+
+    _webview.open_devtools();
+
+    #[cfg(target_os = "macos")]
+    {
+        let devices = ffi::get_aperture_devices();
+        println!("Devices: {}", devices);
+    }
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
 
         match event {
-            Event::NewEvents(StartCause::Init) => {
-                println!("Wry has started!");
-                println!("Window size: {}x{}", width, height);
-                println!("Window position: {}x{}", x_pos, y_pos);
-            }
+            Event::NewEvents(StartCause::Init) => {}
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
@@ -53,4 +59,11 @@ fn main() -> wry::Result<()> {
             _ => (),
         }
     });
+}
+
+#[swift_bridge::bridge]
+mod ffi {
+    extern "Swift" {
+        fn get_aperture_devices() -> String;
+    }
 }
