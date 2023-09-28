@@ -1,0 +1,7 @@
+[package]
+name = "remotion-renderer-rs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wry = "0.33.0"
