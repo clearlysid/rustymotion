@@ -18,7 +18,9 @@ Cargo.lock
 
 /target
 
-
 # mac
 .DS_Store
-./hello-world
+
+hello-world/
+frames/
+out.mp4
