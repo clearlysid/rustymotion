@@ -1,5 +1,6 @@
 mod ffmpeg;
 mod renderer;
+mod webview;
 
 use renderer::{render, RenderOptions};
 
