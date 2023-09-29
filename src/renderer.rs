@@ -1,5 +1,5 @@
 use std::{
-    fs::{read_to_string, File},
+    fs::{read_to_string, remove_dir_all, File},
     io::Write,
     path::{Path, PathBuf},
 };
@@ -47,6 +47,8 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
 
     // 3. Set up Event Loop
     let mut frame_current = frame_start;
+
+    // TODO: write this into a temp directory
     let frame_dir = Path::new("./frames");
 
     if !frame_dir.exists() {
@@ -106,7 +108,7 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                     .expect("Failed to render video");
 
                 // delete frames_dir
-                std::fs::remove_dir_all(frame_dir).expect("Failed to delete frame directory");
+                remove_dir_all(frame_dir).expect("Failed to delete frame directory");
 
                 println!("Rendered: {}", output);
 

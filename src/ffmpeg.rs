@@ -3,23 +3,14 @@ use std::path::Path;
 use std::process::Command;
 
 pub fn encode_video(output_file: &str, fps: &str, frame_dir: &Path) -> Result<String, Error> {
-    // check if frame dir exists
-    if !frame_dir.exists() {
-        return Err(Error::new(
-            ErrorKind::Other,
-            "Frame directory does not exist",
-        ));
-    }
-
     // check if frame dir is empty
     if frame_dir.read_dir()?.next().is_none() {
         return Err(Error::new(ErrorKind::Other, "Frame directory is empty"));
     }
 
-    // create frames string
     let frames = format!("{}/frame-%d.png", frame_dir.display());
+    let out_fps = format!("fps={}", fps);
 
-    // run ffmpeg
     let output = Command::new("ffmpeg")
         .arg("-y")
         .arg("-framerate")
@@ -29,7 +20,7 @@ pub fn encode_video(output_file: &str, fps: &str, frame_dir: &Path) -> Result<St
         .arg("-c:v")
         .arg("libx264") // Use the x264 codec for video
         .arg("-vf")
-        .arg("fps=30") // Ensure the output video has 30 fps
+        .arg(out_fps) // Ensure the output video has 30 fps
         .arg("-pix_fmt")
         .arg("yuv420p") // Pixel format required for many players
         .arg(&output_file) // Output file name
