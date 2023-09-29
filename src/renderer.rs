@@ -29,15 +29,14 @@ pub enum UserEvent {
 
 pub fn render(options: RenderOptions) -> wry::Result<()> {
     // 1. Validate props and process bundle
-    // options.bundle
-    // options.composition
-    // options.frames
-    // options.props
+    // bundle, composition, frames, props
 
     let bundle_path = PathBuf::from(options.bundle);
+    let output_file = "out.mp4";
+    let frame_start = 0;
+    let frame_end = 30;
+
     let _html_content = read_to_string(bundle_path).expect("Failed to read HTML file");
-    let max_frames = 120;
-    let output_file = "out.mpt";
 
     let width = 1920;
     let height = 1080;
@@ -47,28 +46,32 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
     let wv = webview::init(&event_loop, width, height);
 
     // 3. Set up Event Loop
-    let mut current_frame = 0;
+    let mut frame_current = frame_start;
+    let frame_dir = Path::new("./frames");
+
+    if !frame_dir.exists() {
+        std::fs::create_dir(frame_dir).expect("Failed to create frame directory");
+    }
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
-
         match event {
             Event::NewEvents(StartCause::Init) => println!("Render started!"),
             Event::UserEvent(UserEvent::PageLoaded) => {
                 webview::fire_event(&wv, UserEvent::FrameLoaded);
             }
             Event::UserEvent(UserEvent::FrameLoaded) => {
-                if current_frame == max_frames {
+                if frame_current == frame_end {
                     webview::fire_event(&wv, UserEvent::FramesComplete);
                 } else {
-                    println!("Running Frame: {}", current_frame);
+                    println!("Writing Frame: {}", frame_current);
 
                     // Updates contents to current frame
                     let set_frame_command = format!(
                         r#"
                      document.getElementById('box').style.transform = 'rotate({}deg)';
                      "#,
-                        current_frame * 2
+                        frame_current * 2
                     );
                     // format!("remotion_setFrame({})", frame);
                     wv.evaluate_script(set_frame_command.as_str()).unwrap();
@@ -77,19 +80,12 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                     wv.screenshot(
                         ScreenshotRegion::Visible,
                         move |image: wry::Result<Vec<u8>>| {
-                            let filename = format!("frame-{}.png", current_frame);
                             let image = image.expect("Couldn't get image");
                             // println!("image: {:?}", image);
 
-                            // write image to file in ./frames
-                            let path = Path::new("./frames");
-                            if !path.exists() {
-                                std::fs::create_dir(path).expect("Couldn't create directory");
-                            }
-
-                            let filename = path.join(filename);
-                            let mut file =
-                                File::create(filename).expect("Couldn't create the file");
+                            let filename = format!("frame-{}.png", frame_current);
+                            let path = frame_dir.join(filename);
+                            let mut file = File::create(path).expect("Couldn't create the file");
 
                             file.write(image.as_slice())
                                 .expect("Couldn't write to file");
@@ -98,7 +94,7 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                     .unwrap();
 
                     // advance frame
-                    current_frame += 1;
+                    frame_current += 1;
                     webview::fire_event(&wv, UserEvent::FrameLoaded);
                 }
             }
@@ -106,7 +102,12 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                 println!("All frames painted");
 
                 // 4. Render frames to video
-                let output = ffmpeg::encode_video(output_file).expect("Failed to render video");
+                let output = ffmpeg::encode_video(output_file, "30", frame_dir)
+                    .expect("Failed to render video");
+
+                // delete frames_dir
+                std::fs::remove_dir_all(frame_dir).expect("Failed to delete frame directory");
+
                 println!("Rendered: {}", output);
 
                 // 5. Exit the loop

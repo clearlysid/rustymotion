@@ -1,12 +1,31 @@
 use std::io::{Error, ErrorKind};
+use std::path::Path;
 use std::process::Command;
 
-pub fn encode_video(output_file: &str) -> Result<String, Error> {
+pub fn encode_video(output_file: &str, fps: &str, frame_dir: &Path) -> Result<String, Error> {
+    // check if frame dir exists
+    if !frame_dir.exists() {
+        return Err(Error::new(
+            ErrorKind::Other,
+            "Frame directory does not exist",
+        ));
+    }
+
+    // check if frame dir is empty
+    if frame_dir.read_dir()?.next().is_none() {
+        return Err(Error::new(ErrorKind::Other, "Frame directory is empty"));
+    }
+
+    // create frames string
+    let frames = format!("{}/frame-%d.png", frame_dir.display());
+
+    // run ffmpeg
     let output = Command::new("ffmpeg")
+        .arg("-y")
         .arg("-framerate")
-        .arg("30") // 30 frames in 1 second
+        .arg(fps) // 30 frames in 1 second
         .arg("-i")
-        .arg("./frames/frame-%d.png") // Input file pattern
+        .arg(frames) // Input file pattern
         .arg("-c:v")
         .arg("libx264") // Use the x264 codec for video
         .arg("-vf")
