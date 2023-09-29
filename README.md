@@ -19,7 +19,6 @@ For a project where I wanted to use Remotion, shipping a chromium/browser binary
 3. Composition (mandatory, but can improve ux in v2)
 4. Input Props (serialized JSON string)
 5. Frame Range (Example: --frames=0-9 to select the first 10 frames, leaving blank = all frames)
-6. Muted (false)
 
 #### Consider in Phase 2
 
@@ -37,3 +36,4 @@ For a project where I wanted to use Remotion, shipping a chromium/browser binary
 12. Overwrite
 13. Sequence
 14. Public folder
+15. Muted (false)

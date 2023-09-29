@@ -1,16 +1,12 @@
 use std::io::{Error, ErrorKind};
 use std::process::Command;
-use std::thread::sleep;
 
-pub fn render_screenshots_to_video(output_file: String) -> Result<(), Error> {
-    // wait for 2 seconds
-    sleep(std::time::Duration::from_secs(1));
-
+pub fn encode_video(output_file: &str) -> Result<String, Error> {
     let output = Command::new("ffmpeg")
         .arg("-framerate")
         .arg("30") // 30 frames in 1 second
         .arg("-i")
-        .arg("frame-%d.png") // Input file pattern
+        .arg("./frames/frame-%d.png") // Input file pattern
         .arg("-c:v")
         .arg("libx264") // Use the x264 codec for video
         .arg("-vf")
@@ -25,6 +21,5 @@ pub fn render_screenshots_to_video(output_file: String) -> Result<(), Error> {
         return Err(Error::new(ErrorKind::Other, "ffmpeg process failed"));
     }
 
-    println!("Successfully created {}", output_file);
-    Ok(())
+    Ok(output_file.to_string())
 }

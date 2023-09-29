@@ -11,7 +11,6 @@ fn main() -> Result<(), ()> {
         composition: "HelloWorld".to_string(),
         props: None,
         frames: None,
-        muted: None,
     };
 
     render(options).expect("Error rendering project");
