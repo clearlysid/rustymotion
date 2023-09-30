@@ -1,5 +1,5 @@
 [package]
-name = "remotion-renderer-rs"
+name = "rustymotion"
 description = "Remotion Renderer, now in Rust"
 version = "0.1.0"
 edition = "2021"
@@ -7,7 +7,7 @@ rust-version = "1.56"
 license = "MIT"
 authors = ["Siddharth Jha"]
 readme = "README.md"
-keywords = ["remotion"]
+keywords = ["remotion", "ffmpeg", "renderer"]
 categories = []
 
 [dependencies]
