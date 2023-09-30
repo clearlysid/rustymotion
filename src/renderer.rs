@@ -1,5 +1,5 @@
+use std::fs;
 use std::{
-    fs::{read_to_string, remove_dir_all, File},
     io::Write,
     path::{Path, PathBuf},
 };
@@ -11,7 +11,7 @@ use wry::{
     webview::ScreenshotRegion,
 };
 
-use crate::{ffmpeg, webview};
+use crate::{ffmpeg, remotion, webview};
 
 pub struct RenderOptions {
     pub bundle: String,
@@ -36,7 +36,7 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
     let frame_start = 0;
     let frame_end = 30;
 
-    let _html_content = read_to_string(bundle_path).expect("Failed to read HTML file");
+    let _html_content = fs::read_to_string(bundle_path).expect("Failed to read HTML file");
 
     let width = 1920;
     let height = 1080;
@@ -52,7 +52,7 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
     let frame_dir = Path::new("./frames");
 
     if !frame_dir.exists() {
-        std::fs::create_dir(frame_dir).expect("Failed to create frame directory");
+        fs::create_dir(frame_dir).expect("Failed to create frame directory");
     }
 
     event_loop.run(move |event, _, control_flow| {
@@ -60,6 +60,8 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
         match event {
             Event::NewEvents(StartCause::Init) => println!("Render started!"),
             Event::UserEvent(UserEvent::PageLoaded) => {
+                // We can run Remotion commands here to try stuff
+
                 webview::fire_event(&wv, UserEvent::FrameLoaded);
             }
             Event::UserEvent(UserEvent::FrameLoaded) => {
@@ -87,7 +89,8 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
 
                             let filename = format!("frame-{}.png", frame_current);
                             let path = frame_dir.join(filename);
-                            let mut file = File::create(path).expect("Couldn't create the file");
+                            let mut file =
+                                fs::File::create(path).expect("Couldn't create the file");
 
                             file.write(image.as_slice())
                                 .expect("Couldn't write to file");
@@ -108,7 +111,7 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                     .expect("Failed to render video");
 
                 // delete frames_dir
-                remove_dir_all(frame_dir).expect("Failed to delete frame directory");
+                fs::remove_dir_all(frame_dir).expect("Failed to delete frame directory");
 
                 println!("Rendered: {}", output);
 
