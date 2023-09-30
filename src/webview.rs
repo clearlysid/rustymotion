@@ -58,7 +58,7 @@ pub fn init(event_loop: &EventLoop<UserEvent>, entry_point: PathBuf) -> WebView 
         .unwrap()
 }
 
-pub fn fire_event(webview: &WebView, event: UserEvent) {
+pub fn fire_event(webview: &WebView, event: UserEvent, delay: Option<u32>) {
     let event_key = match event {
         UserEvent::PageLoaded => "page-loaded",
         UserEvent::FrameLoaded => "frame-loaded",
@@ -66,7 +66,15 @@ pub fn fire_event(webview: &WebView, event: UserEvent) {
         _ => "none",
     };
 
-    let script = format!("window.ipc.postMessage('{}');", event_key);
+    let mut script = format!("window.ipc.postMessage('{}');", event_key);
+
+    if delay.is_some() {
+        let delay = delay.unwrap();
+        script = format!(
+            "setTimeout(() => {{ window.ipc.postMessage('{}'); }}, {});",
+            event_key, delay
+        );
+    }
 
     webview
         .evaluate_script(&script)
