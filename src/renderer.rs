@@ -30,7 +30,7 @@ pub enum UserEvent {
 
 pub fn render(options: RenderOptions) -> wry::Result<()> {
     // 1. Validate: bundle, composition, frames, props
-    let bundle_path = PathBuf::from("../bundle/index.html");
+    let bundle_path = PathBuf::from("./bundle/index.html");
     let output_file = "out.mp4";
     let frame_start = 0;
     let frame_end = 30;
@@ -105,25 +105,18 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                 );
                 wv.evaluate_script(&composition_prep_script).unwrap();
 
-                
-
-
-
-
-                 // webview::fire_event(&wv, UserEvent::FrameLoaded);
+                webview::fire_event(&wv, UserEvent::FrameLoaded, Some(200));
             }
             Event::UserEvent(UserEvent::FrameLoaded) => {
                 if frame_current == frame_duration {
-                    webview::fire_event(&wv, UserEvent::FramesComplete);
+                    webview::fire_event(&wv, UserEvent::FramesComplete, None);
                 } else {
                     println!("Writing Frame: {}", frame_current);
 
                     // Updates contents to current frame
                     let set_frame_command = format!(
-                        r#"
-                     document.getElementById('box').style.transform = 'rotate({}deg)';
-                     "#,
-                        frame_current * 2
+                        "window.remotion_setFrame({}, '{}');",
+                        frame_current, composition
                     );
                     // format!("remotion_setFrame({})", frame);
                     wv.evaluate_script(set_frame_command.as_str()).unwrap();
@@ -146,7 +139,7 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
 
                     // advance frame
                     frame_current += 1;
-                    webview::fire_event(&wv, UserEvent::FrameLoaded);
+                    webview::fire_event(&wv, UserEvent::FrameLoaded, Some(100));
                 }
             }
             Event::UserEvent(UserEvent::FramesComplete) => {
