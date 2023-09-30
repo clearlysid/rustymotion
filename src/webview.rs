@@ -1,3 +1,6 @@
+use core::panic;
+use std::fs;
+use std::path::PathBuf;
 use wry::{
     application::{
         dpi::PhysicalSize,
@@ -9,41 +12,50 @@ use wry::{
 
 use crate::renderer::UserEvent;
 
-pub fn init(event_loop: &EventLoop<UserEvent>, width: u32, height: u32) -> WebView {
+pub fn init(event_loop: &EventLoop<UserEvent>, entry_point: PathBuf) -> WebView {
+    let width = 1920;
+    let height = 1080;
+
     let proxy = event_loop.create_proxy();
 
     let window = WindowBuilder::new()
+        .with_title("Remotion Renderer")
         .with_inner_size(PhysicalSize::new(width, height))
         .build(&event_loop)
         .unwrap();
 
-    WebViewBuilder::new(window).unwrap()
-        .with_html(
+    window.set_visible_on_all_workspaces(true);
+
+    let html = fs::read_to_string(entry_point).expect("Failed to read HTML file");
+
+    WebViewBuilder::new(window)
+        .unwrap()
+        .with_html(html)
+        .unwrap()
+        .with_initialization_script(
             r#"
-            <html>
-            <body style="display:flex;align-items:center;justify-content:center;">
-            <div id="box">YOLO</div>
-            <style>#box{display:flex;align-items:center;justify-content:center;height:200px;width:200px;background:lightsalmon;font-family:sans-serif;font-weight:bold;font-size:3rem;}</style>
-            </body>
-            </html>
-        "#,
-        ).unwrap()
-        .with_initialization_script(r#"
             window.addEventListener('DOMContentLoaded', (event) => {
                 window.ipc.postMessage('page-loaded');
             });
-        "#,)
+        "#,
+        )
         .with_ipc_handler(move |_: &Window, req: String| {
-					let event = match req.as_str() {
-							"page-loaded" => UserEvent::PageLoaded,
-							"frame-loaded" => UserEvent::FrameLoaded,
-							"frames-complete" => UserEvent::FramesComplete,
-							_ => panic!("Unknown event"),
-					};
+            if req.starts_with("get-compositions:") {
+                let comps = req.replace("get-compositions:", "");
+                let _ = proxy.send_event(UserEvent::GetCompositions(comps));
+            } else {
+                let event = match req.as_str() {
+                    "page-loaded" => UserEvent::PageLoaded,
+                    "frame-loaded" => UserEvent::FrameLoaded,
+                    "frames-complete" => UserEvent::FramesComplete,
+                    _ => panic!("Unknown event: {}", req),
+                };
 
-					let _ = proxy.send_event(event);
-			})
-        .build().unwrap()
+                let _ = proxy.send_event(event);
+            }
+        })
+        .build()
+        .unwrap()
 }
 
 pub fn fire_event(webview: &WebView, event: UserEvent) {
@@ -51,6 +63,7 @@ pub fn fire_event(webview: &WebView, event: UserEvent) {
         UserEvent::PageLoaded => "page-loaded",
         UserEvent::FrameLoaded => "frame-loaded",
         UserEvent::FramesComplete => "frames-complete",
+        _ => "none",
     };
 
     let script = format!("window.ipc.postMessage('{}');", event_key);

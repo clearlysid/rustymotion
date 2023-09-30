@@ -1,5 +1,5 @@
+mod composition;
 mod ffmpeg;
-mod remotion;
 mod renderer;
 mod webview;
 
