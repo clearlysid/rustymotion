@@ -30,6 +30,8 @@ pub enum UserEvent {
 
 pub fn render(options: RenderOptions) -> wry::Result<()> {
     // 1. Validate: bundle, composition, frames, props
+
+    println!("Rendering with options: {:?}", options.bundle);
     let bundle_path = PathBuf::from("./bundle/index.html");
     let output_file = "out.mp4";
     let frame_start = 0;
@@ -75,13 +77,13 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                 let comps = composition::derive(compositions);
                 let comp = comps.iter().find(|c| c.id == composition).expect("No matching Composition found");
 
-                println!("DurationInFrames: {:?}", comp.durationInFrames);
+                println!("DurationInFrames: {:?}", comp.duration_in_frames);
 
                 // TODO: figure out how to apply these
                 // let width = comp.width;
                 // let height = comp.height;
 
-                frame_duration = comp.durationInFrames;
+                frame_duration = comp.duration_in_frames;
                 fps = comp.fps;
                 // let default_props = comp.serializedDefaultPropsWithCustomSchema.clone();
 
@@ -97,15 +99,17 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                         compositionWidth: {},
                     }});",
                     comp.id,
-                    comp.serializedDefaultPropsWithCustomSchema,
-                    comp.durationInFrames,
+                    comp.serialized_default_props_with_custom_schema,
+                    comp.duration_in_frames,
                     comp.fps,
                     comp.height,
                     comp.width
                 );
-                wv.evaluate_script(&composition_prep_script).unwrap();
 
-                webview::fire_event(&wv, UserEvent::FrameLoaded, Some(200));
+                println!("Prepping composition: {}", composition_prep_script);
+                // wv.evaluate_script(&composition_prep_script).unwrap();
+
+                // webview::fire_event(&wv, UserEvent::FrameLoaded, Some(200));
             }
             Event::UserEvent(UserEvent::FrameLoaded) => {
                 if frame_current == frame_duration {
@@ -118,7 +122,6 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                         "window.remotion_setFrame({}, '{}');",
                         frame_current, composition
                     );
-                    // format!("remotion_setFrame({})", frame);
                     wv.evaluate_script(set_frame_command.as_str()).unwrap();
 
                     // save frame to file
@@ -139,7 +142,7 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
 
                     // advance frame
                     frame_current += 1;
-                    webview::fire_event(&wv, UserEvent::FrameLoaded, Some(100));
+                    webview::fire_event(&wv, UserEvent::FrameLoaded, Some(200));
                 }
             }
             Event::UserEvent(UserEvent::FramesComplete) => {

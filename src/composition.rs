@@ -1,15 +1,14 @@
 use serde::{Deserialize, Serialize};
-use serde_json::Result;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Composition {
     pub width: u32,
     pub height: u32,
     pub fps: u32,
-    pub durationInFrames: u32,
+    pub duration_in_frames: u32,
     pub id: String,
-    pub serializedResolvedPropsWithCustomSchema: String,
-    pub serializedDefaultPropsWithCustomSchema: String,
+    pub serialized_resolved_props_with_custom_schema: String,
+    pub serialized_default_props_with_custom_schema: String,
 }
 
 pub fn derive(json: String) -> Vec<Composition> {
