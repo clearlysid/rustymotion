@@ -85,13 +85,35 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                 fps = comp.fps;
                 // let default_props = comp.serializedDefaultPropsWithCustomSchema.clone();
 
+                // Prepare composition for rendering
+                let composition_prep_script = format!(
+                    "window.remotion_setBundleMode({{
+                        type: 'composition',
+                        compositionName: '{}',
+                        serializedResolvedPropsWithSchema: '{}',
+                        compositionDurationInFrames: {},
+                        compositionFps: {},
+                        compositionHeight: {},
+                        compositionWidth: {},
+                    }});",
+                    comp.id,
+                    comp.serializedDefaultPropsWithCustomSchema,
+                    comp.durationInFrames,
+                    comp.fps,
+                    comp.height,
+                    comp.width
+                );
+                wv.evaluate_script(&composition_prep_script).unwrap();
+
+                
+
 
 
 
                  // webview::fire_event(&wv, UserEvent::FrameLoaded);
             }
             Event::UserEvent(UserEvent::FrameLoaded) => {
-                if frame_current == frame_end {
+                if frame_current == frame_duration {
                     webview::fire_event(&wv, UserEvent::FramesComplete);
                 } else {
                     println!("Writing Frame: {}", frame_current);
