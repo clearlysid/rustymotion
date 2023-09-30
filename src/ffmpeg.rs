@@ -2,14 +2,15 @@ use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::process::Command;
 
-pub fn encode_video(output_file: &str, fps: &str, frame_dir: &Path) -> Result<String, Error> {
+pub fn encode_video(output_file: &str, fps: u32, frame_dir: &Path) -> Result<String, Error> {
     // check if frame dir is empty
     if frame_dir.read_dir()?.next().is_none() {
         return Err(Error::new(ErrorKind::Other, "Frame directory is empty"));
     }
 
-    let frames = format!("{}/frame-%d.png", frame_dir.display());
+    let fps = format!("{}", fps);
     let out_fps = format!("fps={}", fps);
+    let frames = format!("{}/frame-%d.png", frame_dir.display());
 
     let output = Command::new("ffmpeg")
         .arg("-y")

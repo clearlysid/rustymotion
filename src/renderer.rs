@@ -11,7 +11,7 @@ use wry::{
     webview::ScreenshotRegion,
 };
 
-use crate::{ffmpeg, remotion, webview};
+use crate::{composition, ffmpeg, webview};
 
 pub struct RenderOptions {
     pub bundle: String,
@@ -25,28 +25,26 @@ pub enum UserEvent {
     PageLoaded,
     FrameLoaded,
     FramesComplete,
+    GetCompositions(String),
 }
 
 pub fn render(options: RenderOptions) -> wry::Result<()> {
-    // 1. Validate props and process bundle
-    // bundle, composition, frames, props
-
-    let bundle_path = PathBuf::from(options.bundle);
+    // 1. Validate: bundle, composition, frames, props
+    let bundle_path = PathBuf::from("../bundle/index.html");
     let output_file = "out.mp4";
     let frame_start = 0;
     let frame_end = 30;
-
-    let _html_content = fs::read_to_string(bundle_path).expect("Failed to read HTML file");
-
-    let width = 1920;
-    let height = 1080;
+    let composition = "HelloWorld";
 
     // 2. Create Webview
-    let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
-    let wv = webview::init(&event_loop, width, height);
+    let event_loop: wry::application::event_loop::EventLoop<UserEvent> =
+        EventLoopBuilder::<UserEvent>::with_user_event().build();
+    let wv = webview::init(&event_loop, bundle_path);
 
     // 3. Set up Event Loop
     let mut frame_current = frame_start;
+    let mut frame_duration = frame_end;
+    let mut fps = 30;
 
     // TODO: write this into a temp directory
     let frame_dir = Path::new("./frames");
@@ -61,8 +59,36 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
             Event::NewEvents(StartCause::Init) => println!("Render started!"),
             Event::UserEvent(UserEvent::PageLoaded) => {
                 // We can run Remotion commands here to try stuff
+                wv.evaluate_script(
+                    r#"
+                    window.remotion_setBundleMode({ type: 'evaluation' });
+                    setTimeout(() => {
+                        window.getStaticCompositions().then(comps => JSON.stringify(comps)).then(json => {
+                            window.ipc.postMessage(`get-compositions:${json}`);
+                        });
+                    }, 1000);
+                    "#
+                ).unwrap();
+            }
+            Event::UserEvent(UserEvent::GetCompositions(compositions)) => {
+                // println!("Got compositions: {}", compositions);
+                let comps = composition::derive(compositions);
+                let comp = comps.iter().find(|c| c.id == composition).expect("No matching Composition found");
 
-                webview::fire_event(&wv, UserEvent::FrameLoaded);
+                println!("DurationInFrames: {:?}", comp.durationInFrames);
+
+                // TODO: figure out how to apply these
+                // let width = comp.width;
+                // let height = comp.height;
+
+                frame_duration = comp.durationInFrames;
+                fps = comp.fps;
+                // let default_props = comp.serializedDefaultPropsWithCustomSchema.clone();
+
+
+
+
+                 // webview::fire_event(&wv, UserEvent::FrameLoaded);
             }
             Event::UserEvent(UserEvent::FrameLoaded) => {
                 if frame_current == frame_end {
@@ -85,10 +111,8 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                         ScreenshotRegion::Visible,
                         move |image: wry::Result<Vec<u8>>| {
                             let image = image.expect("Couldn't get image");
-                            // println!("image: {:?}", image);
-
-                            let filename = format!("frame-{}.png", frame_current);
-                            let path = frame_dir.join(filename);
+                            let name = format!("frame-{}.png", frame_current);
+                            let path = frame_dir.join(name);
                             let mut file =
                                 fs::File::create(path).expect("Couldn't create the file");
 
@@ -107,7 +131,7 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                 println!("All frames painted");
 
                 // 4. Render frames to video
-                let output = ffmpeg::encode_video(output_file, "30", frame_dir)
+                let output = ffmpeg::encode_video(output_file, fps, frame_dir)
                     .expect("Failed to render video");
 
                 // delete frames_dir
