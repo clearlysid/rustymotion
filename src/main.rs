@@ -1,19 +1,17 @@
-mod composition;
-mod ffmpeg;
-mod renderer;
-mod webview;
-
-use renderer::{render, RenderOptions};
+use rustymotion::{render, RenderOptions};
 
 fn main() -> Result<(), ()> {
+    // Provide the options for rendering
+    // Currently the "props" and "frames" options do nothing
     let options = RenderOptions {
-        bundle: "bundle/index.html".to_string(),
-        output: "out".to_string(),
-        composition: "HelloWorld".to_string(),
+        bundle: "bundle/index.html".into(),
+        output: "out".into(),
+        composition: "HelloWorld".into(),
         props: None,
         frames: None,
     };
 
+    // Render the project
     render(options).expect("Error rendering project");
 
     Ok(())
