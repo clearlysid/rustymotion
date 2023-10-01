@@ -2,6 +2,10 @@
 
 A Rust-based renderer for Remotion projects.
 
+![](https://github.com/clearlysid/rustymotion/assets/30227512/abac28b3-5166-430e-ad82-1148cc4f2149)
+
+
+
 > 🚧 WARNING: This is exploratory work only, use at your own risk.
 
 ## Design
