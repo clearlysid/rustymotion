@@ -86,7 +86,7 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                 // let height = comp.height;
 
                 // Update frame duration and fps for the event loop
-                frame_duration = comp.duration_in_frames;
+                frame_duration = comp.durationInFrames;
                 fps = comp.fps;
 
                 // Prepare composition for rendering
@@ -101,8 +101,8 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                         compositionWidth: {},
                     }});",
                     comp.id,
-                    comp.serialized_default_props_with_custom_schema,
-                    comp.duration_in_frames,
+                    comp.serializedDefaultPropsWithCustomSchema,
+                    comp.durationInFrames,
                     comp.fps,
                     comp.height,
                     comp.width
