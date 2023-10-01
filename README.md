@@ -10,11 +10,11 @@ A Rust-based renderer for Remotion projects.
 
 It bundles a React app exposing some global functions to change the layout, depending on the `composition` and `frame` set. The Remotion Renderer then serves this app bundle on a URL and uses Puppeteer to open it on a Chromium-based browser to take a screenshot. All the frames in a composition are "screenshotted", and then FFmpeg stitches them into a video file.
 
-For one of my projects, I could neither use a server and nor was happy to ship a Chromium binary. So I thought of _emulating_ the Remotion renderer using what I had on hand and see if I can get it working _just enough_ — this repo is the result.
+For one of my projects, I could neither use a server and nor was happy to ship a Chromium binary. So I thought of _emulating_ the Remotion renderer using what I had on hand — this repo is the result of it working _just enough_.
 
 ## Approach
 
-1. We start with your [Bundle](https://www.remotion.dev/docs/terminology#bundle). You can create one using either the Remotion CLI (set [log-level](https://www.remotion.dev/docs/renderer/render-media#loglevel) to `verbose`) or the [@remotion/bundler](https://www.remotion.dev/docs/bundler) tool.
+1. We start with your [Bundle](https://www.remotion.dev/docs/terminology#bundle). You can create one using either the Remotion CLI (set [log-level](https://www.remotion.dev/docs/renderer/render-media#loglevel) to `verbose`) or the [@remotion/bundler](https://www.remotion.dev/docs/bundler) tool. There's one included in the project.
 2. This bundled site is opened in your browser's native Webview using the excellent [wry](https://github.com/clearlysid/wry) crate. It handles Webview management across platforms and is used by [Tauri](https://github.com/tauri-apps) apps under the hood.
 3. We run some JS commands in the webview to:
     1. Get a list of compositions and their metadata (dimensions, default props, etc.)
@@ -37,18 +37,18 @@ I made this hack over some sleepless nights — it is not intended for productio
 
 Here's a list of oopsies/gotchas in my current approach. Most of them have solutions:
 
-1. In the bundle, I've manually inlined `bundle.js` into `index.html` to make it easier to load. It is possible to serve the whole bundle using Wry's `custom protocol` feature as well as support `public assets` from your bundle.
+1. I've manually inlined `bundle.js` into its `index.html` to make it easier to load. It is possible to serve the whole bundle using Wry's `custom protocol` feature and even support `public assets`.
 2. The `.screenshot()` is prone to failing. I plan to properly solve this piece and make an upstream PR in Wry.
 3. We save screenshots in the file system and later on use Ffmpeg to encode them at once.
     1. This is inefficient. We can instead likely capture and encode in parallel. Just store the screenshots in memory and "stream" them to Ffmpeg using the `ffmpeg-next` crate.
     2. This should be easily doable, I simply don't know how to — maybe [@Jonny Burger](https://github.com/JonnyBurger) can help 🙈
-4. It is assumed FFmpeg is available in your PATH, I don't have it bundled in the project but this should also be easily fixable.
-5. Your OS might impose security rules/restrictions in what your webview can do and this might impact your remotion bundles.
+4. It is assumed FFmpeg is available in your PATH, I don't have it bundled in the project but this should also be easily fixable with point 3.1.
+5. Your OS could impose security rules/restrictions on what your webview can do and this might impact your rendering.
 
 There are plenty of other caveats, but hopefully the comments in my code clarify how things are working.
 
 ## Closing
 
-Thanks for checking out this project. I hope it was insightful and maybe gives you more ideas.
+Thanks for checking out this project. I hope it was insightful and gives you some ideas.
 
 I unfortunately can't take reponsibility of getting this working in your setup at the moment — but I'm happy to answer any questions or have on it over on [Twitter](https://twitter.com/clearlysid) or the Remotion Discord. See you there! 👋
