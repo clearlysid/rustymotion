@@ -4249,7 +4249,7 @@ const codeStyle = {
 const Subtitle = () => {
   const frame = (0,cjs.useCurrentFrame)();
   const opacity = (0,cjs.interpolate)(frame, [0, 30], [0, 1]);
-  return /* @__PURE__ */ react.createElement("div", { style: { ...subtitle, opacity } }, "This was rendered from ", /* @__PURE__ */ react.createElement("code", { style: codeStyle }, "rust"), " \u{1F980}!");
+  return /* @__PURE__ */ react.createElement("div", { style: { ...subtitle, opacity } }, "Rendered from Rust, without Chromium or Puppeteer! \u{1F92F}");
 };
 
 ;// CONCATENATED MODULE: ./src/HelloWorld/Title.tsx
@@ -4362,8 +4362,8 @@ const RemotionRoot = () => {
       defaultProps: {
         titleText: "Welcome to Remotion",
         titleColor: "#000000",
-        logoColor1: "#91EAE4",
-        logoColor2: "#86A8E7"
+        logoColor1: "#F56623",
+        logoColor2: "#FFA83D"
       }
     }
   ), /* @__PURE__ */ React.createElement(
