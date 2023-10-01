@@ -11,7 +11,9 @@ use wry::{
     webview::ScreenshotRegion,
 };
 
-use crate::{composition, ffmpeg, webview};
+mod composition;
+mod ffmpeg;
+mod webview;
 
 pub struct RenderOptions {
     pub bundle: String,
@@ -32,11 +34,11 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
     // 1. Validate: bundle, composition, frames, props
 
     println!("Rendering with options: {:?}", options.bundle);
-    let bundle_path = PathBuf::from("./bundle/index.html");
-    let output_file = "out.mp4";
+    let bundle_path = PathBuf::from(options.bundle);
+    let output_file = options.output;
+    let composition = options.composition;
     let frame_start = 0;
     let frame_end = 30;
-    let composition = "HelloWorld";
 
     // 2. Create Webview
     let event_loop: wry::application::event_loop::EventLoop<UserEvent> =
@@ -55,12 +57,14 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
         fs::create_dir(frame_dir).expect("Failed to create frame directory");
     }
 
+    // 4. Run Event Loop
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
             Event::NewEvents(StartCause::Init) => println!("Render started!"),
             Event::UserEvent(UserEvent::PageLoaded) => {
                 // We can run Remotion commands here to try stuff
+                // See reference.js to know what we can do
                 wv.evaluate_script(
                     r#"
                     window.remotion_setBundleMode({ type: 'evaluation' });
@@ -73,19 +77,17 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                 ).unwrap();
             }
             Event::UserEvent(UserEvent::GetCompositions(compositions)) => {
-                // println!("Got compositions: {}", compositions);
                 let comps = composition::derive(compositions);
                 let comp = comps.iter().find(|c| c.id == composition).expect("No matching Composition found");
 
-                println!("DurationInFrames: {:?}", comp.duration_in_frames);
-
                 // TODO: figure out how to apply these
+                // We need to change the webview size to the following
                 // let width = comp.width;
                 // let height = comp.height;
 
+                // Update frame duration and fps for the event loop
                 frame_duration = comp.duration_in_frames;
                 fps = comp.fps;
-                // let default_props = comp.serializedDefaultPropsWithCustomSchema.clone();
 
                 // Prepare composition for rendering
                 let composition_prep_script = format!(
@@ -106,10 +108,10 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                     comp.width
                 );
 
-                println!("Prepping composition: {}", composition_prep_script);
-                // wv.evaluate_script(&composition_prep_script).unwrap();
+                // println!("Prepping composition: {}", composition_prep_script);
+                wv.evaluate_script(&composition_prep_script).unwrap();
 
-                // webview::fire_event(&wv, UserEvent::FrameLoaded, Some(200));
+                webview::fire_event(&wv, UserEvent::FrameLoaded, Some(200));
             }
             Event::UserEvent(UserEvent::FrameLoaded) => {
                 if frame_current == frame_duration {
@@ -117,14 +119,14 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                 } else {
                     println!("Writing Frame: {}", frame_current);
 
-                    // Updates contents to current frame
+                    // Updates bundle app to current frame
                     let set_frame_command = format!(
                         "window.remotion_setFrame({}, '{}');",
                         frame_current, composition
                     );
                     wv.evaluate_script(set_frame_command.as_str()).unwrap();
 
-                    // save frame to file
+                    // Save frame to file
                     wv.screenshot(
                         ScreenshotRegion::Visible,
                         move |image: wry::Result<Vec<u8>>| {
@@ -140,7 +142,7 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
                     )
                     .unwrap();
 
-                    // advance frame
+                    // Advance frame
                     frame_current += 1;
                     webview::fire_event(&wv, UserEvent::FrameLoaded, Some(200));
                 }
@@ -148,16 +150,16 @@ pub fn render(options: RenderOptions) -> wry::Result<()> {
             Event::UserEvent(UserEvent::FramesComplete) => {
                 println!("All frames painted");
 
-                // 4. Render frames to video
-                let output = ffmpeg::encode_video(output_file, fps, frame_dir)
+                // Encode frames to video with FFmpeg
+                let output = ffmpeg::encode_video(output_file.as_str(), fps, frame_dir)
                     .expect("Failed to render video");
 
-                // delete frames_dir
+                // Delete frames_dir
                 fs::remove_dir_all(frame_dir).expect("Failed to delete frame directory");
 
                 println!("Rendered: {}", output);
 
-                // 5. Exit the loop
+                // Exit the loop
                 *control_flow = ControlFlow::Exit;
             }
             Event::WindowEvent {

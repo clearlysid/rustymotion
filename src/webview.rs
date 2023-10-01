@@ -10,7 +10,7 @@ use wry::{
     webview::{WebView, WebViewBuilder},
 };
 
-use crate::renderer::UserEvent;
+use crate::UserEvent;
 
 pub fn init(event_loop: &EventLoop<UserEvent>, entry_point: PathBuf) -> WebView {
     let width = 1920;
@@ -19,12 +19,9 @@ pub fn init(event_loop: &EventLoop<UserEvent>, entry_point: PathBuf) -> WebView 
     let proxy = event_loop.create_proxy();
 
     let window = WindowBuilder::new()
-        .with_title("Remotion Renderer")
         .with_inner_size(PhysicalSize::new(width, height))
         .build(&event_loop)
         .unwrap();
-
-    window.set_visible_on_all_workspaces(true);
 
     let html = fs::read_to_string(entry_point).expect("Failed to read HTML file");
 
