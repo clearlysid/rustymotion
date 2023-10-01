@@ -9,7 +9,6 @@ pub fn encode_video(output_file: &str, fps: u32, frame_dir: &Path) -> Result<Str
     }
 
     let fps = format!("{}", fps);
-    let out_fps = format!("fps={}", fps);
     let frames = format!("{}/frame-%d.png", frame_dir.display());
 
     let output = Command::new("ffmpeg")
@@ -21,7 +20,6 @@ pub fn encode_video(output_file: &str, fps: u32, frame_dir: &Path) -> Result<Str
         .arg("-c:v")
         .arg("libx264") // Use the x264 codec for video
         .arg("-vf")
-        .arg(out_fps) // Ensure the output video has 30 fps
         .arg("-pix_fmt")
         .arg("yuv420p") // Pixel format required for many players
         .arg(&output_file) // Output file name
