@@ -55,7 +55,7 @@ pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
     // assert!(tab.get_url().ends_with("WebKit"));
 
     let _png_data =
-        tab.capture_screenshot(Page::CaptureScreenshotFormatOption::Png, None, None, true)?;
+        tab.capture_screenshot(Page::CaptureScreenshotFormatOption::Jpeg, None, None, true)?;
 
     // write png data to file
     let mut file = fs::File::create("screenshot.png").expect("Couldn't create the file");
