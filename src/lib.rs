@@ -65,6 +65,8 @@ fn read_file_to_string(path: PathBuf) -> io::Result<String> {
 }
 
 pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
+    println!("✅ Rendering composition: {}", options.composition);
+
     // 1. Validate bundle and options
     let bundle_path = PathBuf::from(&options.bundle)
         .canonicalize()
@@ -74,6 +76,8 @@ pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
     let composition = options.composition;
     let frame_start = options.frames.unwrap_or((0, 0)).0;
     let frame_end = options.frames.unwrap_or((0, 0)).1;
+
+    println!("✅ Renderer options processed!");
 
     // 2. Read files and get render composition details
     let bundle_index_path = bundle_path.join("index.html");
@@ -89,6 +93,8 @@ pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
     // 3. Render composition
     match render_comp {
         Ok(comp) => {
+            println!("✅ Capturing Frames!");
+
             let fps = comp.fps;
             let width = comp.width;
             let height = comp.height;

@@ -18,7 +18,7 @@ pub fn encode_video(output_file: &str, fps: u32, frame_dir: &Path) -> Result<Str
             "-i",
             frames.as_str(),
             "-c:v",
-            "libx264",
+            "h264_videotoolbox", // only works on macOS
             "-r",
             "30",
             "-pix_fmt",

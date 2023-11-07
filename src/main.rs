@@ -6,7 +6,7 @@ fn main() {
         bundle: "bundles/transitions-video".into(),
         composition: "Main".into(),
         output: "out.mp4".into(),
-        frames: Some((0, 50)),
+        frames: None,
         props: None,
     };
 
