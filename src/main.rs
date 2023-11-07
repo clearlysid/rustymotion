@@ -1,6 +1,6 @@
 use rustymotion::{render, RenderOptions};
 
-fn main() -> Result<(), ()> {
+fn main() {
     // Provide the options for rendering
     let options = RenderOptions {
         bundle: "bundles/hello-world".into(),
@@ -12,6 +12,4 @@ fn main() -> Result<(), ()> {
 
     // Render the project
     render(options).expect("Error rendering project");
-
-    Ok(())
 }
