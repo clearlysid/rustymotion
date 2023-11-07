@@ -2,21 +2,10 @@ use headless_chrome::protocol::cdp::Page;
 use headless_chrome::{Browser, LaunchOptions};
 use std::error::Error;
 use std::fs;
-use std::{
-    io::Write,
-    path::{Path, PathBuf},
-};
-use wry::{
-    application::{
-        event::{Event, StartCause, WindowEvent},
-        event_loop::{ControlFlow, EventLoopBuilder},
-    },
-    webview::ScreenshotRegion,
-};
+use std::path::{Path, PathBuf};
 
 mod composition;
 mod ffmpeg;
-mod webview;
 
 pub struct RenderOptions {
     pub bundle: String,
@@ -33,38 +22,71 @@ pub enum UserEvent {
     GetCompositions(String),
 }
 
+fn unescape_json_string(escaped_json: &str) -> Result<String, serde_json::Error> {
+    // Trim the leading and trailing double quotes, then unescape the string
+    let trimmed = escaped_json.trim_matches('"');
+    let unescaped = serde_json::from_str::<String>(&format!("\"{}\"", trimmed))?;
+    Ok(unescaped)
+}
+
 pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
     // 1. Validate: bundle, composition, frames, props
-
     println!("Rendering with options: {:?}", options.bundle);
-    let bundle_path = PathBuf::from(options.bundle);
+    let bundle_path = PathBuf::from(&options.bundle)
+        .canonicalize()
+        .expect("Failed to find bundle");
     let output_file = options.output;
     let composition = options.composition;
     let frame_start = 0;
     let frame_end = 30;
 
-    // 2. Create Browser
-    let browser = Browser::default().expect("Failed to create browser");
-
+    // 2. Create Browser and tab
+    let browser = Browser::new(LaunchOptions {
+        headless: true,
+        enable_gpu: true,
+        window_size: Some((1920, 1080)),
+        ..Default::default()
+    })
+    .expect("failed to launch browser");
     let tab = browser.new_tab().expect("Failed to create tab");
 
-    tab.navigate_to("https://www.headout.com")?;
-    tab.wait_for_element("footer")?;
-    // tab.type_str("WebKit")?.press_key("Enter")?;
-    // let elem = tab.wait_for_element("#firstHeading")?;
-    // assert!(tab.get_url().ends_with("WebKit"));
+    // load the contents of index.html and navigate there
+    let html_file_url = format!("file://{}", bundle_path.to_str().unwrap());
+    tab.navigate_to(&html_file_url)?;
 
-    let _png_data =
-        tab.capture_screenshot(Page::CaptureScreenshotFormatOption::Jpeg, None, None, true)?;
+    // load and evaluate the javascript
+    // TODO: get js snippet from bundle dynamically
+    let js = fs::read_to_string("./bundle/bundle.js").expect("Failed to read index.js");
+    tab.evaluate(js.as_str(), false).expect("couldn't run js");
 
-    // write png data to file
-    let mut file = fs::File::create("screenshot.png").expect("Couldn't create the file");
-    file.write(_png_data.as_slice())
-        .expect("Couldn't write to file");
+    // Get data about the Remotion bundle
+    tab.evaluate(
+        "window.remotion_setBundleMode({ type: 'evaluation' });",
+        false,
+    )
+    .expect("couldn't set bundlemode to evaluation");
 
-    // let event_loop: wry::application::event_loop::EventLoop<UserEvent> =
-    //     EventLoopBuilder::<UserEvent>::with_user_event().build();
-    // let wv = webview::init(&event_loop, bundle_path);
+    // TODO: figure out waiting mechanism.
+    // wait for 2 seconds
+    // Wait::with_sleep(std::time::Duration::from_secs(2));
+
+    let compositions = tab
+        .evaluate(
+            "window.getStaticCompositions().then(comps => JSON.stringify(comps))",
+            true,
+        )
+        .expect("couldn't get comps")
+        .value
+        .unwrap()
+        .to_string();
+
+    let escaped_comps = unescape_json_string(&compositions).expect("couldn't unescape comps");
+    let comps = composition::derive(escaped_comps);
+
+    let comp = comps
+        .iter()
+        .find(|c| c.id == composition)
+        .expect("No matching Composition found");
 
     // 3. Set up Event Loop
     let mut frame_current = frame_start;
@@ -73,123 +95,65 @@ pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
 
     // TODO: write this into a temp directory
     let frame_dir = Path::new("./frames");
+    if !frame_dir.exists() {
+        fs::create_dir(frame_dir).expect("Failed to create frame directory");
+    }
 
+    // TODO: figure out how to apply these
+    let width = comp.width;
+    let height = comp.height;
+
+    // Update frame duration and fps for the event loop
+    frame_duration = comp.durationInFrames;
+    fps = comp.fps;
+
+    // Prepare composition for rendering
+    let composition_prep_script = format!(
+        "window.remotion_setBundleMode({{
+            type: 'composition',
+            compositionName: '{}',
+            serializedResolvedPropsWithSchema: '{}',
+            compositionDurationInFrames: {},
+            compositionFps: {},
+            compositionHeight: {},
+            compositionWidth: {},
+        }});",
+        comp.id,
+        comp.serializedDefaultPropsWithCustomSchema,
+        comp.durationInFrames,
+        comp.fps,
+        comp.height,
+        comp.width
+    );
+
+    tab.evaluate(&composition_prep_script, true)
+        .expect("couldn't set composition");
+
+    // sleep for 2 seconds main thread
+    std::thread::sleep(std::time::Duration::from_secs(1));
+
+    // 4. Capture Frames
+    for frame in 1..frame_duration {
+        println!("Writing Frame: {}", frame);
+
+        // Updates bundle app to current frame
+        let set_frame_command = format!("window.remotion_setFrame({}, '{}');", frame, composition);
+        tab.evaluate(set_frame_command.as_str(), true)
+            .expect("couldn't set frame");
+
+        // take screenshot
+        let png_data =
+            tab.capture_screenshot(Page::CaptureScreenshotFormatOption::Png, None, None, true)?;
+        let name = format!("frame-{}.png", frame);
+        let path = frame_dir.join(name);
+        std::fs::write(path, png_data)?;
+    }
+
+    println!("Frames captured.");
+    tab.close(true).expect("Failed to close tab");
+
+    // 5. Encode into video
+    ffmpeg::encode_video(&output_file, fps, frame_dir)?;
+    println!("Video encoded.");
     return Ok(());
-
-    // if !frame_dir.exists() {
-    //     fs::create_dir(frame_dir).expect("Failed to create frame directory");
-    // }
-
-    // 4. Run Event Loop
-    // event_loop.run(move |event, _, control_flow| {
-    //     *control_flow = ControlFlow::Wait;
-    //     match event {
-    //         Event::NewEvents(StartCause::Init) => println!("Render started!"),
-    //         Event::UserEvent(UserEvent::PageLoaded) => {
-    //             // We can run Remotion commands here to try stuff
-    //             // See reference.js to know what we can do
-    //             wv.evaluate_script(
-    //                 r#"
-    //                 window.remotion_setBundleMode({ type: 'evaluation' });
-    //                 setTimeout(() => {
-    //                     window.getStaticCompositions().then(comps => JSON.stringify(comps)).then(json => {
-    //                         window.ipc.postMessage(`get-compositions:${json}`);
-    //                     });
-    //                 }, 1000);
-    //                 "#
-    //             ).unwrap();
-    //         }
-    //         Event::UserEvent(UserEvent::GetCompositions(compositions)) => {
-    //             let comps = composition::derive(compositions);
-    //             let comp = comps.iter().find(|c| c.id == composition).expect("No matching Composition found");
-
-    //             // TODO: figure out how to apply these
-    //             // We need to change the webview size to the following
-    //             // let width = comp.width;
-    //             // let height = comp.height;
-
-    //             // Update frame duration and fps for the event loop
-    //             frame_duration = comp.durationInFrames;
-    //             fps = comp.fps;
-
-    //             // Prepare composition for rendering
-    //             let composition_prep_script = format!(
-    //                 "window.remotion_setBundleMode({{
-    //                     type: 'composition',
-    //                     compositionName: '{}',
-    //                     serializedResolvedPropsWithSchema: '{}',
-    //                     compositionDurationInFrames: {},
-    //                     compositionFps: {},
-    //                     compositionHeight: {},
-    //                     compositionWidth: {},
-    //                 }});",
-    //                 comp.id,
-    //                 comp.serializedDefaultPropsWithCustomSchema,
-    //                 comp.durationInFrames,
-    //                 comp.fps,
-    //                 comp.height,
-    //                 comp.width
-    //             );
-
-    //             // println!("Prepping composition: {}", composition_prep_script);
-    //             wv.evaluate_script(&composition_prep_script).unwrap();
-
-    //             webview::fire_event(&wv, UserEvent::FrameLoaded, Some(200));
-    //         }
-    //         Event::UserEvent(UserEvent::FrameLoaded) => {
-    //             if frame_current == frame_duration {
-    //                 webview::fire_event(&wv, UserEvent::FramesComplete, None);
-    //             } else {
-    //                 println!("Writing Frame: {}", frame_current);
-
-    //                 // Updates bundle app to current frame
-    //                 let set_frame_command = format!(
-    //                     "window.remotion_setFrame({}, '{}');",
-    //                     frame_current, composition
-    //                 );
-    //                 wv.evaluate_script(set_frame_command.as_str()).unwrap();
-
-    //                 // Save frame to file
-    //                 wv.screenshot(
-    //                     ScreenshotRegion::Visible,
-    //                     move |image: wry::Result<Vec<u8>>| {
-    //                         let image = image.expect("Couldn't get image");
-    //                         let name = format!("frame-{}.png", frame_current);
-    //                         let path = frame_dir.join(name);
-    //                         let mut file =
-    //                             fs::File::create(path).expect("Couldn't create the file");
-
-    //                         file.write(image.as_slice())
-    //                             .expect("Couldn't write to file");
-    //                     },
-    //                 )
-    //                 .unwrap();
-
-    //                 // Advance frame
-    //                 frame_current += 1;
-    //                 webview::fire_event(&wv, UserEvent::FrameLoaded, Some(200));
-    //             }
-    //         }
-    //         Event::UserEvent(UserEvent::FramesComplete) => {
-    //             println!("All frames painted");
-
-    //             // Encode frames to video with FFmpeg
-    //             let output = ffmpeg::encode_video(output_file.as_str(), fps, frame_dir)
-    //                 .expect("Failed to render video");
-
-    //             // Delete frames_dir
-    //             fs::remove_dir_all(frame_dir).expect("Failed to delete frame directory");
-
-    //             println!("Rendered: {}", output);
-
-    //             // Exit the loop
-    //             *control_flow = ControlFlow::Exit;
-    //         }
-    //         Event::WindowEvent {
-    //             event: WindowEvent::CloseRequested,
-    //             ..
-    //         } => *control_flow = ControlFlow::Exit,
-    //         _ => (),
-    //     }
-    // });
 }
