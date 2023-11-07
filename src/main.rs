@@ -2,13 +2,12 @@ use rustymotion::{render, RenderOptions};
 
 fn main() -> Result<(), ()> {
     // Provide the options for rendering
-    // Currently the "props" and "frames" options do nothing
     let options = RenderOptions {
-        bundle: "bundle/index.html".into(),
-        output: "out.mp4".into(),
+        bundle: "bundles/hello-world".into(),
         composition: "HelloWorld".into(),
-        props: None,
+        output: "out.mp4".into(),
         frames: None,
+        props: None,
     };
 
     // Render the project
