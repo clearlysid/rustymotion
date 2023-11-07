@@ -15,7 +15,6 @@ pub fn encode_video(output_file: &str, fps: u32, frame_dir: &Path) -> Result<Str
         .args(&[
             "-framerate",
             fps.as_str(),
-            // "-i", "frames/frame-%d.png",
             "-i",
             frames.as_str(),
             "-c:v",
@@ -24,7 +23,7 @@ pub fn encode_video(output_file: &str, fps: u32, frame_dir: &Path) -> Result<Str
             "30",
             "-pix_fmt",
             "yuv420p",
-            "output.mp4",
+            output_file,
         ])
         .output()?;
 
