@@ -32,8 +32,8 @@ I wanted to avoid a Node.js or server-based setup for one of my projects and hav
 
 ## Closing
 
-Thanks for checking out this project. I made this hack (again) over some sleepless nights. It is not intended for production, nor can I offer any support for it. I just hope to present this as a POC to the [Remotion team](https://github.com/remotion-dev) and hopefully spark some new ideas.
+Thanks for checking out this project! I made this hack (again) over a sleepless night or two. It is not intended for production nor can I offer any support for it. Just leaving it here as a POC for the [Remotion team](https://github.com/remotion-dev) and others to hopefully spark some new ideas.
 
-I unfortunately can't take reponsibility of getting this working in your setup at the moment — but I'm happy to answer any questions or have on it over on [Twitter](https://twitter.com/clearlysid) or the Remotion Discord. See you there! 👋
+Happy to answer questions/queries over on [Twitter](https://twitter.com/clearlysid) or the Remotion Discord. See you there! 👋
 
-PS — this is a different approach than what I did initially, you can check out my first attempt at this using [wry](https://github.com/clearlysid/wry) crate in the `wry` branch. Please refer to that branch's `readme` for more info.
+PS: this is a new approach. You might like to check out my first attempt at this using [Wry](https://github.com/clearlysid/wry) in the `wry` branch. Refer to the `readme` there for more info.
