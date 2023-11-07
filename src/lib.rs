@@ -6,6 +6,7 @@ use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Png;
 use headless_chrome::{Browser, LaunchOptions};
 use std::error::Error;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -45,14 +46,26 @@ fn get_render_comp(
     let comp_raw = tab.evaluate(&comp_script, true)?.value.unwrap().to_string();
     let comp_clean = unescape_json_string(&comp_raw)?;
 
-    tab.close(false)?;
-
     Ok(composition::derive_composition(comp_clean))
+}
+
+fn read_file_to_string(path: PathBuf) -> io::Result<String> {
+    if !path.exists() {
+        return Err(io::Error::new(io::ErrorKind::NotFound, "File not found"));
+    }
+
+    if !path.is_file() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Path is not a file",
+        ));
+    }
+
+    fs::read_to_string(path)
 }
 
 pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
     // 1. Validate bundle and options
-    println!("Rendering with options: {:?}", options);
     let bundle_path = PathBuf::from(&options.bundle)
         .canonicalize()
         .expect("Bundle folder does not exist.");
@@ -67,7 +80,10 @@ pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
     let bundle_index_str = bundle_index_path.to_str().unwrap();
     let bundle_index_url = format!("file://{}", bundle_index_str);
     let bundle_js_path = bundle_path.join("bundle.js");
-    let bundle_js_str = fs::read_to_string(bundle_js_path)?;
+    let bundle_js_str = match read_file_to_string(bundle_js_path) {
+        Ok(content) => content,
+        Err(e) => return Err(Box::new(e)),
+    };
     let render_comp = get_render_comp(&composition, &bundle_index_url, &bundle_js_str);
 
     // 3. Render composition

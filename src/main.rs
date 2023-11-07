@@ -4,9 +4,9 @@ fn main() {
     // Provide the options for rendering
     let options = RenderOptions {
         bundle: "bundles/transitions-video".into(),
-        composition: "Grid".into(),
+        composition: "Main".into(),
         output: "out.mp4".into(),
-        frames: None,
+        frames: Some((0, 50)),
         props: None,
     };
 
