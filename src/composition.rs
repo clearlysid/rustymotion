@@ -15,10 +15,10 @@ pub struct Composition {
     pub serialized_default_props_with_custom_schema: String,
 }
 
-pub fn derive_composition_list(json: String) -> Vec<Composition> {
-    let comps: Vec<Composition> = serde_json::from_str(&json).unwrap();
-    comps
-}
+// pub fn derive_composition_list(json: String) -> Vec<Composition> {
+//     let comps: Vec<Composition> = serde_json::from_str(&json).unwrap();
+//     comps
+// }
 
 pub fn derive_composition(json: String) -> Composition {
     let comp: Composition = serde_json::from_str(&json).unwrap();
