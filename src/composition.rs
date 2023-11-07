@@ -19,3 +19,8 @@ pub fn derive(json: String) -> Vec<Composition> {
     let comps: Vec<Composition> = serde_json::from_str(&json).unwrap();
     comps
 }
+
+pub fn derive_single(json: String) -> Composition {
+    let comp: Composition = serde_json::from_str(&json).unwrap();
+    comp
+}
