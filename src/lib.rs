@@ -6,6 +6,7 @@ use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Png;
 use headless_chrome::{Browser, LaunchOptions};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 use std::{error::Error, fs, io, thread};
 
 #[derive(Debug)]
@@ -64,6 +65,8 @@ fn read_file_to_string(path: PathBuf) -> io::Result<String> {
 }
 
 pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
+    let now = Instant::now();
+
     println!("✅ Rendering composition: {}", options.composition);
 
     // 1. Validate bundle and options
@@ -198,6 +201,9 @@ pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
     // Encode into video
     ffmpeg::encode_video(&output_file, fps, &frame_dir.lock().unwrap())?;
     println!("✅ Video encoded.");
+
+    let elapsed_time = now.elapsed();
+    println!("⏰ Rendering took {}s", elapsed_time.as_secs_f64());
 
     return Ok(());
 }
