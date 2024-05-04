@@ -3,8 +3,8 @@ use rustymotion::{render, RenderOptions};
 fn main() {
     // Provide the options for rendering
     let options = RenderOptions {
-        bundle: "bundles/transitions-video".into(),
-        composition: "Main".into(),
+        bundle: "bundles/template-three-bundle".into(),
+        composition: "Scene".into(),
         output: "out.mp4".into(),
         frames: None,
         props: None,

@@ -21,6 +21,5 @@ Cargo.lock
 # mac
 .DS_Store
 
-bundles/
 frames/
 out.mp4
