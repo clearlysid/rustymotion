@@ -4,10 +4,9 @@ mod ffmpeg;
 use composition::Composition;
 use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Png;
 use headless_chrome::{Browser, LaunchOptions};
-use std::error::Error;
-use std::fs;
-use std::io;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use std::{error::Error, fs, io, thread};
 
 #[derive(Debug)]
 pub struct RenderOptions {
@@ -102,71 +101,101 @@ pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
                 0 => comp.duration_in_frames,
                 _ => frame_end,
             };
+            let frame_dir = Arc::new(Mutex::new(PathBuf::from("./frames")));
 
-            // 2. Create Browser and tab
-            let browser = Browser::new(LaunchOptions {
-                headless: true,
-                enable_gpu: true,
-                window_size: Some((width, height)),
-                ..Default::default()
-            })?;
-            let tab = browser.new_tab()?;
+            // Get CPU Cores and calculate frames per thread
+            let num_threads = num_cpus::get() as u32;
+            let frames_per_thread = frame_duration / num_threads as u32;
+            let mut handles = Vec::new(); // To store thread handles
 
-            tab.navigate_to(&bundle_index_url)?;
-            tab.evaluate(&bundle_js_str, true)?;
+            // Spawn threads
+            for i in 0..num_threads {
+                let thread_comp = comp.id.clone();
+                let thread_comp_clone = comp.clone();
+                let thread_bundle_js_str = bundle_js_str.clone();
+                let thread_bundle_index_url = bundle_index_url.clone();
+                // let thread_sender = sender.clone();
+                let frame_dir = frame_dir.clone();
 
-            // TODO: write this into a temp directory
-            let frame_dir = Path::new("./frames");
-            if !frame_dir.exists() {
-                fs::create_dir(frame_dir).expect("Failed to create frame directory");
+                // Calculate the frame range for this thread
+                let start_frame = i * frames_per_thread;
+                let end_frame = if i == num_threads - 1 {
+                    frame_duration
+                } else {
+                    (i + 1) * frames_per_thread
+                };
+
+                let handle = thread::spawn(move || {
+                    // 1. For each thread, spawn a browser instance
+                    let browser = Browser::new(LaunchOptions {
+                        headless: true,
+                        enable_gpu: true,
+                        window_size: Some((width, height)),
+                        ..Default::default()
+                    })
+                    .expect("Failed to launch browser");
+
+                    // 2. Open tab and navigate to index.html
+                    let tab = browser.new_tab().expect("Failed to create tab");
+                    tab.navigate_to(&thread_bundle_index_url)
+                        .expect("Failed to navigate to index.html");
+                    tab.evaluate(&thread_bundle_js_str, true)
+                        .expect("failed to evaluate bundle.js");
+
+                    // 3. Prepare composition for rendering
+                    let comp_prep_script = format!(
+                        "window.remotion_setBundleMode({{
+                            type: 'composition',
+                            compositionName: '{}',
+                            serializedResolvedPropsWithSchema: '{}',
+                            compositionDurationInFrames: {},
+                            compositionFps: {},
+                            compositionHeight: {},
+                            compositionWidth: {},
+                        }});",
+                        thread_comp_clone.id,
+                        thread_comp_clone.serialized_default_props_with_custom_schema,
+                        thread_comp_clone.duration_in_frames,
+                        thread_comp_clone.fps,
+                        thread_comp_clone.height,
+                        thread_comp_clone.width
+                    );
+                    tab.evaluate(&comp_prep_script, true)
+                        .expect("Failed to prepare composition");
+
+                    // Loop over frames and capture screenshots
+                    for frame in start_frame..end_frame {
+                        // Updates bundle app to current frame
+                        let set_frame_script =
+                            format!("window.remotion_setFrame({}, '{}');", frame, thread_comp);
+                        tab.evaluate(&set_frame_script.as_str(), true)
+                            .expect("Failed to set frame");
+
+                        println!("Capturing frame: {}", frame);
+
+                        // take screenshot
+                        let png_data = tab
+                            .capture_screenshot(Png, None, None, true)
+                            .expect("couldn't capture screenshot");
+                        let name = format!("frame-{}.png", frame);
+                        let path = frame_dir.lock().unwrap().join(name);
+                        std::fs::write(path, png_data).expect("couldn't write file");
+                        // println!("PNG Data: {:?}", &png_data[0..5]);
+                    }
+                });
+
+                handles.push(handle); // Store the handle
             }
 
-            // 7. Prepare composition for rendering
-            let comp_prep_script = format!(
-                "window.remotion_setBundleMode({{
-                    type: 'composition',
-                    compositionName: '{}',
-                    serializedResolvedPropsWithSchema: '{}',
-                    compositionDurationInFrames: {},
-                    compositionFps: {},
-                    compositionHeight: {},
-                    compositionWidth: {},
-                }});",
-                comp.id,
-                comp.serialized_default_props_with_custom_schema,
-                comp.duration_in_frames,
-                comp.fps,
-                comp.height,
-                comp.width
-            );
-            tab.evaluate(&comp_prep_script, true)?;
-
-            // sleep for 2 seconds main thread
-            std::thread::sleep(std::time::Duration::from_secs(1));
-
-            // 8. Capture Frames
-            for frame in frame_start..frame_duration {
-                println!("Writing Frame: {}", frame);
-
-                // Updates bundle app to current frame
-                let set_frame_script =
-                    format!("window.remotion_setFrame({}, '{}');", frame, composition);
-                tab.evaluate(&set_frame_script.as_str(), true)?;
-
-                // take screenshot
-                let png_data = tab.capture_screenshot(Png, None, None, true)?;
-                println!("PNG Data: {:?}", &png_data[0..5]);
-
-                let name = format!("frame-{}.png", frame);
-                let path = frame_dir.join(name);
-                std::fs::write(path, png_data)?;
+            // Collect all the output handles from threads
+            for handle in handles {
+                handle.join().expect("Thread panicked");
             }
 
             println!("Frames captured.");
-            tab.close(true).expect("Failed to close tab");
 
-            // 9. Encode into video
-            ffmpeg::encode_video(&output_file, fps, frame_dir)?;
+            // Encode into video
+            ffmpeg::encode_video(&output_file, fps, &frame_dir.lock().unwrap())?;
             println!("Video encoded.");
             return Ok(());
         }

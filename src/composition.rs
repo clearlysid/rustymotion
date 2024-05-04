@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Composition {
+    pub id: String,
+    pub fps: u32,
     pub width: u32,
     pub height: u32,
-    pub fps: u32,
-    pub id: String,
 
     #[serde(rename = "durationInFrames")]
     pub duration_in_frames: u32,
