@@ -1,5 +1,5 @@
 mod composition;
-mod ffmpeg;
+mod encoder;
 
 use composition::Composition;
 use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Png;
