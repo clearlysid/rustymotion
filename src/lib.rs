@@ -1,6 +1,7 @@
 mod composition;
 mod encoder;
 
+use anyhow::Result;
 use composition::Composition;
 use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Png;
 use headless_chrome::{Browser, LaunchOptions};
@@ -24,11 +25,7 @@ fn unescape_json_string(escaped_json: &str) -> Result<String, serde_json::Error>
     Ok(unescaped)
 }
 
-fn get_render_comp(
-    comp: &String,
-    html: &String,
-    js: &String,
-) -> Result<Composition, Box<dyn Error>> {
+fn get_render_comp(comp: &String, url: &String) -> Result<Composition, Box<dyn Error>> {
     let browser = Browser::default()?;
     let tab = browser.new_tab()?;
 
@@ -38,8 +35,8 @@ fn get_render_comp(
         comp
     );
 
-    tab.navigate_to(&html)?;
-    tab.evaluate(&js, true)?;
+    tab.navigate_to(&url)?;
+    tab.wait_until_navigated()?;
     tab.evaluate(mode_script, false)?;
 
     let comp_raw = tab.evaluate(&comp_script, true)?.value.unwrap().to_string();
@@ -63,6 +60,26 @@ fn read_file_to_string(path: PathBuf) -> io::Result<String> {
     fs::read_to_string(path)
 }
 
+#[actix_web::main]
+async fn serve_remotion_bundle(bundle_path: PathBuf, port: u16) {
+    // TODO: check for port availability
+    // fallback to available port gracefully
+
+    actix_web::HttpServer::new(move || {
+        actix_web::App::new()
+            // .wrap(Cors::default().send_wildcard())
+            .service(actix_files::Files::new("/", &bundle_path).index_file("index.html"))
+    })
+    .bind(("127.0.0.1", port))
+    .expect("Port blocked")
+    .run()
+    .await
+    .expect("Could't start server");
+
+    // TODO: band karna server
+    //https://github.com/actix/examples/pull/240/files#diff-2d6d91cabd1e5f2349cb628a2d27fbe1e25babe2bb226fa8cc3f71be107d359e
+}
+
 pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
     println!("✅ Rendering composition: {}", options.composition);
 
@@ -73,23 +90,22 @@ pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
 
     let output_file = options.output;
     let composition = options.composition;
-    let frame_start = options.frames.unwrap_or((0, 0)).0;
-    let frame_end = options.frames.unwrap_or((0, 0)).1;
+    let (frame_start, frame_end) = options.frames.unwrap_or((0, 0));
 
     println!("✅ Renderer options processed!");
 
-    // 2. Read files and get render composition details
-    let bundle_index_path = bundle_path.join("index.html");
-    let bundle_index_str = bundle_index_path.to_str().unwrap();
-    let bundle_index_url = format!("file://{}", bundle_index_str);
-    let bundle_js_path = bundle_path.join("bundle.js");
-    let bundle_js_str = match read_file_to_string(bundle_js_path) {
-        Ok(content) => content,
-        Err(e) => return Err(Box::new(e)),
-    };
-    let render_comp = get_render_comp(&composition, &bundle_index_url, &bundle_js_str);
+    // 2. Serve the bundle on actix server
+    const PORT: u16 = 6543;
+    let bundle_url = format!("http://127.0.0.1:{}/", PORT);
+    thread::spawn(|| serve_remotion_bundle(bundle_path, PORT));
+    println!("✅ Remotion Bundle served at {}", bundle_url);
 
-    // 3. Render composition
+    // 3. Get render composition details
+    let render_comp = get_render_comp(&composition, &bundle_url);
+
+    println!("✅ Render composition details fetched!");
+
+    // 4. Render composition
     match render_comp {
         Ok(comp) => {
             println!("✅ Capturing Frames!");
@@ -112,8 +128,7 @@ pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
             for i in 0..num_threads {
                 let thread_comp = comp.id.clone();
                 let thread_comp_clone = comp.clone();
-                let thread_bundle_js_str = bundle_js_str.clone();
-                let thread_bundle_index_url = bundle_index_url.clone();
+                let thread_bundle_index_url = bundle_url.clone();
                 // let thread_sender = sender.clone();
                 let frame_dir = frame_dir.clone();
 
@@ -139,8 +154,8 @@ pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
                     let tab = browser.new_tab().expect("Failed to create tab");
                     tab.navigate_to(&thread_bundle_index_url)
                         .expect("Failed to navigate to index.html");
-                    tab.evaluate(&thread_bundle_js_str, true)
-                        .expect("failed to evaluate bundle.js");
+                    tab.wait_until_navigated()
+                        .expect("Failed to wait for navigation");
 
                     // 3. Prepare composition for rendering
                     let comp_prep_script = format!(
@@ -195,7 +210,7 @@ pub fn render(options: RenderOptions) -> Result<(), Box<dyn Error>> {
             println!("Frames captured.");
 
             // Encode into video
-            ffmpeg::encode_video(&output_file, fps, &frame_dir.lock().unwrap())?;
+            encoder::encode_video(&output_file, fps, &frame_dir.lock().unwrap())?;
             println!("Video encoded.");
             return Ok(());
         }
