@@ -11,6 +11,10 @@ keywords = ["remotion", "ffmpeg", "renderer"]
 categories = []
 
 [dependencies]
+actix-cors = "0.7.0"
+actix-files = "0.6.5"
+actix-web = "4.5.1"
+anyhow = "1.0.82"
 headless_chrome = "1.0.7"
 num_cpus = "1.16.0"
 serde = { version = "1.0.188", features = ["derive"] }
