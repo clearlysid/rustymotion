@@ -176,6 +176,10 @@ pub fn render(options: RenderOptions) -> Result<(), Error> {
                     .capture_screenshot(Png, None, None, true)
                     .expect("couldn't capture screenshot");
 
+                // ONLY FOR TESTING: write to file
+                let png_path = format!("frames/frame_{}.png", frame);
+                std::fs::write(&png_path, &png_data).expect("Failed to write PNG file");
+
                 let display_time = utils::create_display_time(frame, thread_composition.fps);
                 let bgra_data =
                     utils::get_bgra_from_png(png_data).expect("Failed to get BGRA frame data");
