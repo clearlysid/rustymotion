@@ -26,6 +26,6 @@ pub fn get_bgra_from_png(png_data: Vec<u8>) -> Result<Vec<u8>, Error> {
 }
 
 pub fn create_display_time(frame_index: u32, fps: u32) -> u64 {
-    let frame_duration_millis = 1000 / fps;
-    frame_index as u64 * frame_duration_millis as u64
+    let frame_duration_nanos = 1_000_000_000 / fps as u64;
+    frame_index as u64 * frame_duration_nanos as u64
 }

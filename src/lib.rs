@@ -104,7 +104,7 @@ pub fn render(options: RenderOptions) -> Result<(), Error> {
     });
 
     // 6. Create threads for capturing frames
-    let capture_thread_count: u32 = 3;
+    let capture_thread_count: u32 = 5;
     let frames_per_thread = frame_duration / capture_thread_count;
     let mut capture_thread_handles = Vec::new();
 
@@ -176,24 +176,24 @@ pub fn render(options: RenderOptions) -> Result<(), Error> {
                     .capture_screenshot(Png, None, None, true)
                     .expect("couldn't capture screenshot");
 
-                println!("Captured frame {}: {:?}", frame, &png_data[0..9]);
-
+                let display_time = utils::create_display_time(frame, thread_composition.fps);
                 let bgra_data =
                     utils::get_bgra_from_png(png_data).expect("Failed to get BGRA frame data");
 
-                let display_time = utils::create_display_time(frame, thread_composition.fps);
+                println!(
+                    "Captured frame {} at display_time: {:?}",
+                    frame, display_time
+                );
 
-                let final_frame = BGRAFrame {
+                let bgra_frame = BGRAFrame {
                     display_time,
+                    data: bgra_data,
                     width: thread_composition.width as i32,
                     height: thread_composition.height as i32,
-                    data: bgra_data,
                 };
 
-                // TODO: Create a Frame struct from png_data
-
                 thread_encoder_tx
-                    .send(final_frame) // Frame should be sent here instead
+                    .send(Frame::BGRA(bgra_frame))
                     .expect("Failed to send frame");
             }
 
@@ -213,7 +213,7 @@ pub fn render(options: RenderOptions) -> Result<(), Error> {
     // 8. Keep encoding until the ALL sending channels are dropped
     while let Ok(data) = encoder_rx.recv() {
         encoder
-            .ingest_next_frame(&Frame::BGRA(data))
+            .ingest_next_frame(&data)
             .expect("failed to send frame");
     }
 
