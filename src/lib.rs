@@ -7,6 +7,7 @@ use anyhow::{Error, Result};
 use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption::Png;
 use headless_chrome::{Browser, LaunchOptions};
 use henx::{VideoEncoder, VideoEncoderOptions};
+use scap::frame::{BGRAFrame, Frame};
 use std::{path::PathBuf, sync::mpsc, thread};
 
 use composition::Composition;
@@ -177,10 +178,22 @@ pub fn render(options: RenderOptions) -> Result<(), Error> {
 
                 println!("Captured frame {}: {:?}", frame, &png_data[0..9]);
 
+                let bgra_data =
+                    utils::get_bgra_from_png(png_data).expect("Failed to get BGRA frame data");
+
+                let display_time = utils::create_display_time(frame, thread_composition.fps);
+
+                let final_frame = BGRAFrame {
+                    display_time,
+                    width: thread_composition.width as i32,
+                    height: thread_composition.height as i32,
+                    data: bgra_data,
+                };
+
                 // TODO: Create a Frame struct from png_data
 
                 thread_encoder_tx
-                    .send(png_data) // Frame should be sent here instead
+                    .send(final_frame) // Frame should be sent here instead
                     .expect("Failed to send frame");
             }
 
@@ -199,12 +212,9 @@ pub fn render(options: RenderOptions) -> Result<(), Error> {
 
     // 8. Keep encoding until the ALL sending channels are dropped
     while let Ok(data) = encoder_rx.recv() {
-        // log data received
-        println!("Encoder Received: {:?}", &data[0..5]);
-
-        // encoder
-        //     .ingest_next_frame(&data)
-        //     .expect("failed to send frame");
+        encoder
+            .ingest_next_frame(&Frame::BGRA(data))
+            .expect("failed to send frame");
     }
 
     // 9. Finish encoding
