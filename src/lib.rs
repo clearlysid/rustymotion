@@ -104,7 +104,7 @@ pub fn render(options: RenderOptions) -> Result<(), Error> {
     });
 
     // 6. Create threads for capturing frames
-    let capture_thread_count: u32 = 5;
+    let capture_thread_count: u32 = 1;
     let frames_per_thread = frame_duration / capture_thread_count;
     let mut capture_thread_handles = Vec::new();
 
@@ -177,8 +177,8 @@ pub fn render(options: RenderOptions) -> Result<(), Error> {
                     .expect("couldn't capture screenshot");
 
                 // ONLY FOR TESTING: write to file
-                let png_path = format!("frames/frame_{}.png", frame);
-                std::fs::write(&png_path, &png_data).expect("Failed to write PNG file");
+                // std::fs::write(&format!("frames/frame_{}.png", frame), &png_data)
+                //     .expect("Failed to write PNG file");
 
                 let display_time = utils::create_display_time(frame, thread_composition.fps);
                 let bgra_data =
