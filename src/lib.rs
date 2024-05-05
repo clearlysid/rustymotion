@@ -1,5 +1,5 @@
 mod composition;
-mod encoder;
+mod utils;
 
 use anyhow::Result;
 use composition::Composition;
